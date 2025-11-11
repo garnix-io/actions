@@ -1,9 +1,11 @@
 {
   description = "Some garnix actions";
 
-  inputs.flake-utils.url = "github:numtide/flake-utils";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs";
-  inputs.sarif.url = "github:psastras/sarif-rs";
+  inputs = {
+    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:NixOS/nixpkgs";
+    sarif.url = "github:psastras/sarif-rs";
+  };
 
 
   outputs = { self, nixpkgs, flake-utils, sarif }:
