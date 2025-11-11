@@ -1,0 +1,4 @@
+actions:
+  - on: push
+    run: statix
+    withRepoContents: true
