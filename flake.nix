@@ -132,11 +132,12 @@
           /*
             Run clippy and upload comments as pull-request comments
             */
-          clippy = { actionName, encryptedTokenFile } :
+          clippy = { actionName, encryptedTokenFile, manifestPath ? "Cargo.toml" } :
             self.lib.${system}.reviewDog {
               inherit actionName encryptedTokenFile;
               linter = ''
-                ${pkgs.lib.getExe pkgs.clippy} -q --message-format=short
+                PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin
+                cargo clippy --manifest-path ${manifestPath} -q --message-format=short
               '';
               errorFormat = "clippy";
             };
@@ -148,6 +149,11 @@
             { actionName = "statix";
               encryptedTokenFile = "./secrets/reviewDogToken";
             };
+          clippy = self.lib.${system}.clippy
+            { actionName = "clippy";
+              manifestPath = "./tests/clippy/Cargo.toml";
+              encryptedTokenFile = "./secrets/clippyToken";
+            };
         };
 
         devShells.default = pkgs.mkShell {
@@ -155,9 +161,8 @@
             age
             statix
             reviewdog
-            cargo
             clippy
-            sarif.packages.${system}.clippy-sarif
+            cargo
           ];
         };
       }
