@@ -35,6 +35,31 @@ Example:
 }
 ```
 
+### statix
+
+```
+statix : { disabled ? [], ignore ? [] } -> App
+```
+
+Run [statix](https://github.com/oppiliappan/statix) on your Nix files.
+
+- actionName: The name of the output this action is running as.
+- disabled: A list of lints to disable. See [here](https://github.com/oppiliappan/statix?tab=readme-ov-file#configuration) for more details. Default: [].
+- ignore: A list of paths (globs allowed) to not check. Default: [].
+
+Example:
+
+```nix
+{
+
+  outputs = { ... }:
+    apps.x86_64-linux.statix = actions.lib.statix
+      { actionName = "statix";
+        disabled = [ "useless_parens" ];
+      }
+}
+```
+
 ## Helpers
 
 ### getGitHubPAT

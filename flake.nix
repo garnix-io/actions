@@ -59,6 +59,8 @@
               echo "$TOKEN" | age --encrypt -r "$PUB_KEY" --output ${encryptedTokenFile}
             '';
           }; };
+
+
           reviewDog = {
             actionName,
             linter,
@@ -90,7 +92,7 @@
                 # reviewdog from running
                 set +e
                 OUTFILE=$(mktemp)
-                ${linter} > "$OUTFILE"
+                ${pkgs.writeShellScript "linter" linter} > "$OUTFILE"
                 EXIT_CODE=$?
                 echo "Running reviewdog"
                 cat "$OUTFILE" | reviewdog -reporter=github-pr-review -efm="${errorFormat}" -guess
@@ -103,14 +105,35 @@
                 appDescription = "reviewdog via garnix actions";
               };
             };
+          statix = { actionName, disabled ? [], ignore ? []  } :
+            let
+              config = pkgs.writeText "statix.toml" ''
+                disabled = [ ${toString disabled} ]
+              '';
+              ignoredStr = if ignore == []
+                then ""
+                else "--ignore ${toString ignore}";
+            in self.lib.${system}.reviewDog {
+              inherit actionName;
+              linter = ''
+                ${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
+              '';
+              errorFormat = "%f>%l:%c:%.%#:%.%#:%m";
+              encryptedTokenFile = "./secrets/reviewDogToken";
+            };
+
         };
+
         apps = {
-          statix = self.lib.${system}.reviewDog {
-            actionName = "statix";
-            linter = "${pkgs.statix}/bin/statix check . -o errfmt";
-            errorFormat = "%f>%l:%c:%.%#:%.%#:%m";
-            encryptedTokenFile = "./secrets/reviewDogToken";
-          };
+          statix = self.lib.${system}.statix { actionName = "statix";};
+        };
+
+        devShells.default = pkgs.mkShell {
+          buildInputs = with pkgs; [
+            age
+            statix
+            reviewdog
+          ];
         };
       }
     );
