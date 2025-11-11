@@ -68,9 +68,24 @@
               name = "reviewdog";
               runtimeInputs = with pkgs; [
                 reviewdog
+                age
               ];
               text = ''
-                export
+                URL=$(git remote get-url origin)
+                RE="^(https|git)(:\/\/|@)([^\/:]+)[\/:]([^\/:]+)\/(.+)(.git)*$"
+                if [[ $URL =~ $RE ]]; then
+                 CI_REPO_OWNER=''${BASH_REMATCH[4]}
+                 CI_REPO_NAME=$(basename "''${BASH_REMATCH[5]}" .git)
+                else
+                 printf "Could not parse remote\n"
+                 exit 1
+                fi
+                export CI_REPO_OWNER
+                export CI_REPO_NAME
+                CI_COMMIT="$GARNIX_COMMIT_SHA"
+                export CI_COMMIT
+                REVIEWDOG_GITHUB_API_TOKEN=$(age --decrypt --identity "$GARNIX_ACTION_PRIVATE_KEY_FILE" ${encryptedTokenFile})
+                export REVIEWDOG_GITHUB_API_TOKEN
                 ${linter} | reviewdog -reporter=github-pr-review -efm=${errorFormat} -guess
               '';
             };} // {
