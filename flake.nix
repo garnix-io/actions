@@ -103,8 +103,13 @@
                 OUTFILE=$(mktemp)
                 ${pkgs.writeShellScript "linter" linter} > "$OUTFILE"
                 EXIT_CODE=$?
+                set -e
+                if [[ "$EXIT_CODE" != 0 ]]; then
+                  echo "Linter exited non-zero"
+                fi
+                cat "$OUTFILE"
                 echo "Running reviewdog"
-                cat "$OUTFILE" | reviewdog -reporter=github-pr-review ${fmt} -guess
+                cat "$OUTFILE" | reviewdog -reporter=github-pr-review ${fmt} -guess -tee
                 exit "$EXIT_CODE"
               '';
             };} // {
