@@ -71,6 +71,8 @@
                 age
               ];
               text = ''
+                set -x
+
                 URL=$(git remote get-url origin)
                 RE="^(https|git)(:\/\/|@)([^\/:]+)[\/:]([^\/:]+)\/(.+)(.git)*$"
                 if [[ $URL =~ $RE ]]; then
@@ -86,7 +88,7 @@
                 export CI_COMMIT
                 REVIEWDOG_GITHUB_API_TOKEN=$(age --decrypt --identity "$GARNIX_ACTION_PRIVATE_KEY_FILE" ${encryptedTokenFile})
                 export REVIEWDOG_GITHUB_API_TOKEN
-                ${linter} | reviewdog -reporter=github-pr-review -efm=${errorFormat} -guess
+                ${linter} | reviewdog -reporter=github-pr-review -efm="${errorFormat}" -guess
               '';
             };} // {
               setupSecrets = self.lib.${system}.getGitHubPAT {
