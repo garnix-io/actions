@@ -3,13 +3,14 @@
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
+  inputs.sarif.url = "github:psastras/sarif-rs";
 
-  outputs = { self, nixpkgs, flake-utils }:
+
+  outputs = { self, nixpkgs, flake-utils, sarif }:
     flake-utils.lib.eachDefaultSystem (system:
       let pkgs = nixpkgs.legacyPackages.${system}; in
       {
-        lib = let
-        in {
+        lib = {
           /*
             A helper to get a GitHub Personal Access Token (PAT).
 
@@ -60,7 +61,9 @@
             '';
           }; };
 
-
+          /*
+           A generic reviewdog-based linter that
+           */
           reviewDog = {
             actionName,
             linter,
@@ -99,13 +102,18 @@
                 exit "$EXIT_CODE"
               '';
             };} // {
-              setupSecrets = self.lib.${system}.getGitHubPAT {
+              setup = self.lib.${system}.getGitHubPAT {
                 inherit actionName encryptedTokenFile;
                 appName = "reviewdog ${actionName}";
                 appDescription = "reviewdog via garnix actions";
               };
             };
-          statix = { actionName, disabled ? [], ignore ? []  } :
+
+
+          /*
+            Run statix and upload comments as pull-request comments
+            */
+          statix = { actionName, encryptedTokenFile, disabled ? [], ignore ? []  } :
             let
               config = pkgs.writeText "statix.toml" ''
                 disabled = [ ${toString disabled} ]
@@ -114,18 +122,32 @@
                 then ""
                 else "--ignore ${toString ignore}";
             in self.lib.${system}.reviewDog {
-              inherit actionName;
+              inherit actionName encryptedTokenFile;
               linter = ''
                 ${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
               '';
               errorFormat = "%f>%l:%c:%.%#:%.%#:%m";
-              encryptedTokenFile = "./secrets/reviewDogToken";
+            };
+
+          /*
+            Run clippy and upload comments as pull-request comments
+            */
+          clippy = { actionName, encryptedTokenFile } :
+            self.lib.${system}.reviewDog {
+              inherit actionName encryptedTokenFile;
+              linter = ''
+                ${pkgs.lib.getExe pkgs.clippy} -q --message-format=short
+              '';
+              errorFormat = "clippy";
             };
 
         };
 
         apps = {
-          statix = self.lib.${system}.statix { actionName = "statix";};
+          statix = self.lib.${system}.statix
+            { actionName = "statix";
+              encryptedTokenFile = "./secrets/reviewDogToken";
+            };
         };
 
         devShells.default = pkgs.mkShell {
@@ -133,6 +155,9 @@
             age
             statix
             reviewdog
+            cargo
+            clippy
+            sarif.packages.${system}.clippy-sarif
           ];
         };
       }

@@ -4,3 +4,5 @@
 # nix
 result
 result-*
+
+tests/clippy/target
