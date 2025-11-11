@@ -68,6 +68,7 @@
             actionName,
             linter,
             errorFormat ? "%f:$l%:%c: %m",
+            format ? null,
             encryptedTokenFile
           }: flake-utils.lib.mkApp { drv = pkgs.writeShellApplication {
               name = "reviewdog";
@@ -75,7 +76,11 @@
                 reviewdog
                 age
               ];
-              text = ''
+              text =
+              let fmt = if format == null
+                then "-efm=${errorFormat}"
+                else "-f=${format}";
+              in ''
                 URL=$(git remote get-url origin)
                 RE="^(https|git)(:\/\/|@)([^\/:]+)[\/:]([^\/:]+)\/(.+)(.git)*$"
                 if [[ $URL =~ $RE ]]; then
@@ -98,7 +103,7 @@
                 ${pkgs.writeShellScript "linter" linter} > "$OUTFILE"
                 EXIT_CODE=$?
                 echo "Running reviewdog"
-                cat "$OUTFILE" | reviewdog -reporter=github-pr-review -efm="${errorFormat}" -guess
+                cat "$OUTFILE" | reviewdog -reporter=github-pr-review ${fmt} -guess
                 exit "$EXIT_CODE"
               '';
             };} // {
@@ -139,7 +144,7 @@
                 PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin
                 cargo clippy --manifest-path ${manifestPath} -q --message-format=short
               '';
-              errorFormat = "clippy";
+              format = "clippy";
             };
 
         };
