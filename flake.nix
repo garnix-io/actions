@@ -10,7 +10,8 @@
     flake-utils.lib.eachDefaultSystem (system:
       let pkgs = nixpkgs.legacyPackages.${system}; in
       {
-        lib = {
+        lib = let
+        in {
           /*
             A helper to get a GitHub Personal Access Token (PAT).
 
