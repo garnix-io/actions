@@ -4,11 +4,10 @@
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs";
-    sarif.url = "github:psastras/sarif-rs";
   };
 
 
-  outputs = { self, nixpkgs, flake-utils, sarif }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let pkgs = nixpkgs.legacyPackages.${system}; in
       {
