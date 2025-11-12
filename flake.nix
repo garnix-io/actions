@@ -161,7 +161,7 @@
               inherit actionName encryptedTokenFile logLevel;
               linter = ''
                 PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin
-                cargo clippy --manifest-path ${manifestPath} -q --message-format=short
+                cargo clippy --manifest-path ${manifestPath} -q --message-format=short 2>&1
               '';
               format = "clippy";
             };
