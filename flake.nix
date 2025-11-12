@@ -71,6 +71,7 @@
             linter,
             errorFormat ? "%f:$l%:%c: %m",
             format ? null,
+            logLevel ? "info",
             encryptedTokenFile
           }: flake-utils.lib.mkApp { drv = pkgs.writeShellApplication {
               name = "reviewdog";
@@ -110,7 +111,7 @@
                 fi
                 cat "$OUTFILE"
                 echo "Running reviewdog"
-                cat "$OUTFILE" | reviewdog -reporter=github-pr-review ${fmt} -guess -tee
+                cat "$OUTFILE" | reviewdog -log-level=${logLevel} -reporter=github-pr-review ${fmt} -guess -tee
                 exit "$EXIT_CODE"
               '';
             };} // {
@@ -125,7 +126,13 @@
           /*
             Run statix and upload comments as pull-request comments
             */
-          statix = { actionName, encryptedTokenFile, disabled ? [], ignore ? []  } :
+          statix =
+            { actionName,
+              encryptedTokenFile,
+              disabled ? [],
+              ignore ? [],
+              logLevel ? "info"
+            }:
             let
               config = pkgs.writeText "statix.toml" ''
                 disabled = [ ${toString disabled} ]
@@ -134,7 +141,7 @@
                 then ""
                 else "--ignore ${toString ignore}";
             in self.lib.${system}.reviewDog {
-              inherit actionName encryptedTokenFile;
+              inherit actionName encryptedTokenFile logLevel;
               linter = ''
                 ${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
               '';
@@ -144,9 +151,14 @@
           /*
             Run clippy and upload comments as pull-request comments
             */
-          clippy = { actionName, encryptedTokenFile, manifestPath ? "Cargo.toml" } :
+          clippy =
+            { actionName,
+              encryptedTokenFile,
+              manifestPath ? "Cargo.toml",
+              logLevel ? "info"
+            } :
             self.lib.${system}.reviewDog {
-              inherit actionName encryptedTokenFile;
+              inherit actionName encryptedTokenFile logLevel;
               linter = ''
                 PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin
                 cargo clippy --manifest-path ${manifestPath} -q --message-format=short
@@ -165,6 +177,7 @@
             { actionName = "clippy";
               manifestPath = "./tests/clippy/Cargo.toml";
               encryptedTokenFile = "./secrets/clippyToken";
+              logLevel = "debug";
             };
         };
 
