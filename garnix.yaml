@@ -2,3 +2,6 @@ actions:
   - on: push
     run: statix
     withRepoContents: true
+  - on: push
+    run: clippy
+    withRepoContents: true
