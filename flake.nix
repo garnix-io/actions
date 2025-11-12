@@ -80,7 +80,7 @@
               ];
               text =
               let fmt = if format == null
-                then "-efm=${errorFormat}"
+                then "-efm='${errorFormat}'"
                 else "-f=${format}";
               in ''
                 URL=$(git remote get-url origin)
