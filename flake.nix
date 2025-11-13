@@ -12,7 +12,7 @@
       let pkgs = nixpkgs.legacyPackages.${system}; in
       {
         lib = let
-        in {
+        in rec {
           /*
             A helper to get a GitHub Personal Access Token (PAT).
 
@@ -22,7 +22,8 @@
             appName,
             appDescription,
             actionName,
-            encryptedTokenFile
+            encryptedTokenFile,
+            extraRecipientsFile ? null,
           }: flake-utils.lib.mkApp { drv = pkgs.writeShellApplication {
             name = "getGitHubPAT";
             runtimeInputs = with pkgs; [
@@ -30,7 +31,12 @@
               xdg-utils
               age
             ];
-            text = ''
+            text =
+            let
+              recipientsFileStr = if extraRecipientsFile == null
+                then ""
+                else "--recipients-file ${extraRecipientsFile}";
+            in ''
               URL=$(git remote get-url origin)
               RE="^(https|git)(:\/\/|@)([^\/:]+)[\/:]([^\/:]+)\/(.+)(.git)*$"
               if [[ $URL =~ $RE ]]; then
@@ -59,12 +65,29 @@
               printf "We suggest limiting the repository access to only the needed repo.\n"
               read -r -s -p "Input the token generated (will not be echoed): " TOKEN
 
-              echo "$TOKEN" | age --encrypt -r "$PUB_KEY" --output ${encryptedTokenFile}
+              echo "$TOKEN" | age --encrypt ${recipientsFileStr} --recipient "$PUB_KEY" --output ${encryptedTokenFile}
             '';
           }; };
 
           /*
-           A generic reviewdog-based linter that
+           Attempts to mimic the CI environment as much as possible. In
+           particular, sets all the GARNIX_* environment variables to sensible
+           values (which can however be overriden).
+
+           You should source this string at the beginning of your bash script.
+
+           */
+
+          withCIEnvironment = pkgs.writeText "withCIEnvironment" ''
+            GARNIX_COMMIT_SHA=''${GARNIX_COMMIT_SHA:=$(git rev-parse HEAD)}
+            GARNIX_BRANCH=''${GARNIX_BRANCH:=$(git rev-parse --abbrev-ref HEAD)}
+
+            export GARNIX_COMMIT_SHA
+            export GARNIX_BRANCH
+          '';
+
+          /*
+           A generic reviewdog-based linter
            */
           reviewDog = {
             actionName,
@@ -72,18 +95,24 @@
             errorFormat ? "%f:$l%:%c: %m",
             format ? null,
             logLevel ? "info",
-            encryptedTokenFile
+            encryptedTokenFile,
+            extraRecipientsFile ? null,
           }: flake-utils.lib.mkApp { drv = pkgs.writeShellApplication {
               name = "reviewdog";
               runtimeInputs = with pkgs; [
                 reviewdog
                 age
               ];
+              excludeShellChecks = [
+                "SC1091"
+              ];
               text =
               let fmt = if format == null
                 then "-efm='${errorFormat}'"
                 else "-f=${format}";
               in ''
+                source ${withCIEnvironment}
+
                 URL=$(git remote get-url origin)
                 RE="^(https|git)(:\/\/|@)([^\/:]+)[\/:]([^\/:]+)\/(.+)(.git)*$"
                 if [[ $URL =~ $RE ]]; then
@@ -116,7 +145,7 @@
               '';
             };} // {
               setup = self.lib.${system}.getGitHubPAT {
-                inherit actionName encryptedTokenFile;
+                inherit actionName encryptedTokenFile extraRecipientsFile;
                 appName = "reviewdog ${actionName}";
                 appDescription = "reviewdog via garnix actions";
               };
@@ -131,7 +160,8 @@
               encryptedTokenFile,
               disabled ? [],
               ignore ? [],
-              logLevel ? "info"
+              logLevel ? "info",
+              extraRecipientsFile ? null,
             }:
             let
               config = pkgs.writeText "statix.toml" ''
@@ -141,7 +171,7 @@
                 then ""
                 else "--ignore ${toString ignore}";
             in self.lib.${system}.reviewDog {
-              inherit actionName encryptedTokenFile logLevel;
+              inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
                 ${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
               '';
@@ -155,10 +185,11 @@
             { actionName,
               encryptedTokenFile,
               manifestPath ? "Cargo.toml",
-              logLevel ? "info"
+              logLevel ? "info",
+              extraRecipientsFile ? null,
             } :
             self.lib.${system}.reviewDog {
-              inherit actionName encryptedTokenFile logLevel;
+              inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
                 PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin
                 cargo clippy --manifest-path ${manifestPath} -q --message-format=short 2>&1
@@ -177,6 +208,7 @@
             { actionName = "clippy";
               manifestPath = "./tests/clippy/Cargo.toml";
               encryptedTokenFile = "./secrets/clippyToken";
+              extraRecipientsFile = ./secrets/recipients.txt;
               logLevel = "debug";
             };
         };
