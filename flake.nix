@@ -140,7 +140,7 @@
                 fi
                 cat "$OUTFILE"
                 echo "Running reviewdog"
-                cat "$OUTFILE" | reviewdog -log-level=${logLevel} -reporter=github-pr-review ${fmt} -guess -tee
+                cat "$OUTFILE" | reviewdog -log-level=${logLevel} -reporter=github-pr-review ${fmt} -guess -tee -name="${actionName}"
                 exit "$EXIT_CODE"
               '';
             };} // {
