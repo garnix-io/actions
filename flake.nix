@@ -191,10 +191,13 @@
             self.lib.${system}.reviewDog {
               inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
-                PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin
-                cargo clippy --manifest-path ${manifestPath} -q --message-format short 2>&1
+
+                PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin:${pkgs.gnused}/bin
+                CARGO_DIR=$(dirname "${manifestPath}")
+
+                cargo clippy --manifest-path ${manifestPath} -q --message-format short 2>&1 | sed "s#^#$CARGO_DIR/#"
               '';
-              errorFormat = "%f:%l:%c: %m";
+              errorFormat = "./%f:%l:%c: %m";
             };
 
         };
