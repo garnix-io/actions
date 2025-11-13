@@ -134,13 +134,16 @@
                 OUTFILE=$(mktemp)
                 ${pkgs.writeShellScript "linter" linter} > "$OUTFILE"
                 EXIT_CODE=$?
-                set -e
                 if [[ "$EXIT_CODE" != 0 ]]; then
                   echo "Linter exited non-zero"
                 fi
                 cat "$OUTFILE"
                 echo "Running reviewdog"
+                # We don't include reviewdog exit code as a failure because it
+                # might not find the PR, but we should eventually manually
+                # verify that case
                 cat "$OUTFILE" | reviewdog -log-level=${logLevel} -reporter=github-pr-review ${fmt} -guess -tee -name="${actionName}"
+                set -e
                 exit "$EXIT_CODE"
               '';
             };} // {
@@ -162,6 +165,7 @@
               ignore ? [],
               logLevel ? "info",
               extraRecipientsFile ? null,
+              expectFailure ? false,
             }:
             let
               config = pkgs.writeText "statix.toml" ''
@@ -170,10 +174,11 @@
               ignoredStr = if ignore == []
                 then ""
                 else "--ignore ${toString ignore}";
+              revertExitStr = if expectFailure then "" else "! ";
             in self.lib.${system}.reviewDog {
               inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
-                ${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
+                ${revertExitStr} ${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
               '';
               errorFormat = "%f>%l:%c:%.%#:%.%#:%m";
             };
@@ -187,15 +192,17 @@
               manifestPath ? "Cargo.toml",
               logLevel ? "info",
               extraRecipientsFile ? null,
+              expectFailure ? false,
             } :
-            self.lib.${system}.reviewDog {
+            let revertExitStr = if expectFailure then "" else "! ";
+            in self.lib.${system}.reviewDog {
               inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
 
                 PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin:${pkgs.gnused}/bin
                 CARGO_DIR=$(dirname "${manifestPath}")
 
-                cargo clippy --manifest-path ${manifestPath} -q --message-format short 2>&1 | sed "s#^#$CARGO_DIR/#"
+                ${revertExitStr} cargo clippy --manifest-path ${manifestPath} -q --message-format short 2>&1 | sed "s#^#$CARGO_DIR/#"
               '';
               errorFormat = "./%f:%l:%c: %m";
             };
@@ -206,6 +213,7 @@
           statix = self.lib.${system}.statix
             { actionName = "statix";
               encryptedTokenFile = "./secrets/reviewDogToken";
+              expectFailure = true;
             };
           clippy = self.lib.${system}.clippy
             { actionName = "clippy";
