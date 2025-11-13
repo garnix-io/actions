@@ -174,11 +174,11 @@
               ignoredStr = if ignore == []
                 then ""
                 else "--ignore ${toString ignore}";
-              revertExitStr = if expectFailure then "" else "! ";
+              revertExitStr = if expectFailure then "! " else "";
             in self.lib.${system}.reviewDog {
               inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
-                ${revertExitStr} ${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
+                ${revertExitStr}${pkgs.statix}/bin/statix ${ignoredStr} check . --config ${config} -o errfmt;
               '';
               errorFormat = "%f>%l:%c:%.%#:%.%#:%m";
             };
@@ -194,7 +194,7 @@
               extraRecipientsFile ? null,
               expectFailure ? false,
             } :
-            let revertExitStr = if expectFailure then "" else "! ";
+            let revertExitStr = if expectFailure then "! " else "";
             in self.lib.${system}.reviewDog {
               inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
@@ -202,7 +202,7 @@
                 PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin:${pkgs.gnused}/bin
                 CARGO_DIR=$(dirname "${manifestPath}")
 
-                ${revertExitStr} cargo clippy --manifest-path ${manifestPath} -q --message-format short 2>&1 | sed "s#^#$CARGO_DIR/#"
+                ${revertExitStr}cargo clippy --manifest-path ${manifestPath} -q --message-format short 2>&1 | sed "s#^#$CARGO_DIR/#"
               '';
               errorFormat = "./%f:%l:%c: %m";
             };
