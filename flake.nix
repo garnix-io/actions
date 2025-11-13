@@ -3,7 +3,7 @@
 
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs?ref=nixpkgs-unstable";
   };
 
 
@@ -192,9 +192,9 @@
               inherit actionName encryptedTokenFile logLevel extraRecipientsFile;
               linter = ''
                 PATH=$PATH:${pkgs.cargo}/bin:${pkgs.clippy}/bin
-                cargo clippy --manifest-path ${manifestPath} -q --message-format=short 2>&1
+                cargo clippy --manifest-path ${manifestPath} -q --message-format short 2>&1
               '';
-              format = "clippy";
+              errorFormat = "%f:%l:%c: %m";
             };
 
         };
